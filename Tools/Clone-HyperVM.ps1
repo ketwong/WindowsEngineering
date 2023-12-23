@@ -51,7 +51,7 @@ if (-not $NewVhdPath) {
 function Write-VerboseLog {
     Param ([string]$message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$timestamp: $message"
+    Write-Host "$timestamp : $message"
 }
 
 # Export VM

@@ -47,16 +47,24 @@ if (-not $NewVhdPath) {
     $NewVhdPath = "D:\Dev\HyperV\$NewVmName\Virtual Hard Disks"
 }
 
+# Helper function to write verbose log
+function Write-VerboseLog {
+    Param ([string]$message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "$timestamp: $message"
+}
+
 # Export VM
 function Export-VMOperation {
     Param ([string]$vmName, [string]$exportPath)
     try {
         Export-VM -Name $vmName -Path $exportPath
         $vmExportPath = Join-Path -Path $exportPath -ChildPath $vmName
+        Write-VerboseLog "Exported VM '$vmName' to '$vmExportPath'."
         return $vmExportPath
     }
     catch {
-        Write-Host "Error exporting VM '$vmName': $_"
+        Write-VerboseLog "Error exporting VM '$vmName': $_"
         throw
     }
 }
@@ -70,10 +78,11 @@ function Import-VMOperation {
             throw "VMCX file not found in path: $vmExportPath"
         }
         $importedVm = Import-VM -Path $vmcxFilePath -Copy -GenerateNewId -VirtualMachinePath $vmFilesPath -VhdDestinationPath $vhdPath
+        Write-VerboseLog "Imported VM from '$vmcxFilePath'."
         return $importedVm
     }
     catch {
-        Write-Host "Error importing VM from '$vmExportPath': $_"
+        Write-VerboseLog "Error importing VM from '$vmExportPath': $_"
         throw
     }
 }
@@ -83,9 +92,10 @@ function Rename-VMOperation {
     Param ([Microsoft.HyperV.PowerShell.VirtualMachine]$vm, [string]$newName)
     try {
         Rename-VM -VM $vm -NewName $newName
+        Write-VerboseLog "Renamed VM to '$newName'."
     }
     catch {
-        Write-Host "Error renaming VM to '$newName': $_"
+        Write-VerboseLog "Error renaming VM to '$newName': $_"
         throw
     }
 }
@@ -96,20 +106,26 @@ function Cleanup-TemporaryFiles {
     try {
         if (Test-Path $vmExportPath) {
             Remove-Item -Path $vmExportPath -Recurse -Force
+            Write-VerboseLog "Cleaned up temporary files in '$vmExportPath'."
         }
     }
     catch {
-        Write-Host "Error cleaning up temporary files in '$vmExportPath': $_"
+        Write-VerboseLog "Error cleaning up temporary files in '$vmExportPath': $_"
     }
 }
 
 # Main script execution
 try {
+    Write-VerboseLog "Starting Clone-HyperVM script."
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    
     $vmExportPath = Export-VMOperation -vmName $MasterVmName -exportPath $TempFolderPath
     $importedVm = Import-VMOperation -vmExportPath $vmExportPath -vmFilesPath $NewVmFilesPath -vhdPath $NewVhdPath
     Rename-VMOperation -vm $importedVm -newName $NewVmName
     Cleanup-TemporaryFiles -vmExportPath $vmExportPath
-    Write-Host "Clone-HyperVM script completed successfully."
+
+    $stopwatch.Stop()
+    Write-VerboseLog "Script completed in $($stopwatch.Elapsed.TotalSeconds) seconds."
 }
 catch {
     Write-Host "An error occurred in the Clone-HyperVM script: $_"
